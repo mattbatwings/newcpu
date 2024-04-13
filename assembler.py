@@ -92,6 +92,8 @@ def assemble(assembly_filename, output_filename):
         
         # begin machine code translation
         opcode = words[0]
+        if not (opcode in symbols):
+            exit(f'Unknown symbol "{opcode}" on line {i}')
         machine_code = (symbols[opcode] << 12)
         words = [resolve(word) for word in words]
 
