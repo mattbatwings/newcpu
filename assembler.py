@@ -50,13 +50,15 @@ def assemble(assembly_filename, output_filename):
         return word[0] == '.'
     
     offset = 0
+    offset_label = 0
     for index, line in enumerate(lines):
         words = [word.lower() for word in line.split()]
         if is_definition(words[0]):
-            symbols[words[1]] = int(words[2])
+            symbols[words[1]] = int(eval(words[2]))
             offset += 1
         elif is_label(words[0]):
-            symbols[words[0]] = index - offset
+            symbols[words[0]] = index - offset - offset_label
+            offset_label += len(words) < 2
     
     # Generate machine code
     def resolve(word):
@@ -73,6 +75,10 @@ def assemble(assembly_filename, output_filename):
         # Remove label, we have it in symbols now
         if is_label(words[0]):
             words = words[1:]
+            
+        # Catch the error from empty line after label
+        if words == []:
+            continue
         
         # Pseudo-instructions
         if words[0] == 'cmp':
@@ -122,7 +128,7 @@ def assemble(assembly_filename, output_filename):
         if opcode in ['add', 'sub', 'nor', 'and', 'xor', 'rsh']:
             if words[-1] != (words[-1] % (2 ** 4)):
                 exit(f'Invalid reg C for {opcode} on line {i}')
-            machine_code |= words[3]
+            machine_code |= words[-1]
 
         # Immediate
         if opcode in ['ldi', 'adi']:
