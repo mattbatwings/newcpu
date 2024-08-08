@@ -51,20 +51,6 @@ def assemble(assembly_filename, mc_filename):
     pc = 0
     instructions = []
 
-    for index, line in enumerate(lines):
-        words = [word.lower() for word in line.split()]
-
-        if is_definition(words[0]):
-            symbols[words[1]] = int(words[2])
-        elif is_label(words[0]):
-            symbols[words[0]] = pc
-            if len(words) > 1:
-                pc += 1
-                instructions.append(words[1:])
-        else:
-            pc += 1
-            instructions.append(words)
-
     # Generate machine code
     def resolve(word):
         if word[0] in '-0123456789':
@@ -72,6 +58,36 @@ def assemble(assembly_filename, mc_filename):
         if symbols.get(word) is None:
             exit(f'Could not resolve {word}')
         return symbols[word]
+
+    should_exit = 0
+    exit_mess = ""
+    for index, line in enumerate(lines):
+        words = [word.lower() for word in line.split()]
+
+        if is_definition(words[0]):
+            if(words[1] in symbols):
+                # Accumulate all duplicate definitions as the error message
+                exit_mess += f'Duplicate definition \'{words[1]}\' at line {index} before instruction {"%04d"%pc}!!\n'
+                # Instruction index is included because Ado's VM shows only the instruction indices
+                should_exit |= 2 # Signal dup. definitions
+            symbols[words[1]] = resolve(words[2]) # Support for any number fmt. as long as it has its base identifier
+        elif is_label(words[0]):
+            if(words[0] in symbols):
+                # Accumulate all duplicate labels as the error message
+                exit_mess += f'Duplicate label \'{words[0]}\' at line {index} before instruction {"%04d"%pc}!!\n'
+                # Instruction index is included because Ado's VM shows only the instruction indices
+                should_exit |= 1 # Signal dup. labels
+            symbols[words[0]] = pc
+            if len(words) > 1:
+                pc += 1
+                instructions.append(words[1:])
+        else:
+            pc += 1
+            instructions.append(words)
+    # Send them all at once
+    if(should_exit > 0):
+        exit_mess += ("Error: Duplicate labels.\n" * ((should_exit & 1) != 0)) + ("Error: Duplicate definitions.\n" * ((should_exit & 2) != 0))
+        exit(exit_mess)
 
     for pc, words in enumerate(instructions):
         # Resolve pseudo-instructions
